@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -12,6 +13,20 @@ const pluginName = "birds-eye"
 
 type BirdsEye struct{}
 
+type Org struct {
+	Resources []OrgResources `json:"resources"`
+}
+
+type OrgResources struct {
+	Entity OrgEntity `json:"entity"`
+}
+
+type OrgEntity struct {
+	Name             string `json:"name"`
+	OrganizationGUID int    `json:"organization_guid"`
+	AppsURL          string `json:"apps_url"`
+}
+
 func (c *BirdsEye) Run(cliConnection plugin.CliConnection, args []string) {
 	if args[0] == pluginName {
 
@@ -21,11 +36,11 @@ func (c *BirdsEye) Run(cliConnection plugin.CliConnection, args []string) {
 			isLoggedIn bool
 			orgs       []plugin_models.GetOrgs_Model
 			spaces     []plugin_models.GetSpaces_Model
-			apps       []plugin_models.GetAppsModel
+			// apps       []plugin_models.GetAppsModel
 
 			orgNames []string
 			// spaceNames []string
-			appNames []string
+			// appNames []string
 
 			orgGUIDs []string
 		)
@@ -46,9 +61,9 @@ func (c *BirdsEye) Run(cliConnection plugin.CliConnection, args []string) {
 			fmt.Printf("Error getting spaces: %v", spaces)
 		}
 
-		if apps, err = cliConnection.GetApps(); err != nil {
-			fmt.Printf("Error getting apps: %v", apps)
-		}
+		// if apps, err = cliConnection.GetApps(); err != nil {
+		// 	fmt.Printf("Error getting apps: %v", apps)
+		// }
 
 		for _, org := range orgs {
 			orgNames = append(orgNames, org.Name)
@@ -57,15 +72,18 @@ func (c *BirdsEye) Run(cliConnection plugin.CliConnection, args []string) {
 
 		fmt.Print("All orgs:\n\n", strings.Join(orgNames, "\n"))
 
+		var orgResult Org
 		url := fmt.Sprintf("/v2/organizations/%s/spaces", orgGUIDs[0])
+		orgResult = c.UnmarshalOrg(url, cliConnection)
 
-		orgSpaces, err := cliConnection.CliCommandWithoutTerminalOutput("curl", url)
-		if err != nil {
-			fmt.Printf("Error getting spaces from org: %s", orgNames[0])
+		var orgSpaces []string
+		for _, space := range orgResult.Resources {
+			orgSpaces = append(orgSpaces, space.Entity.Name)
 		}
 
+		fmt.Print("\n\n")
 		fmt.Print("All spaces:\n\n", strings.Join(orgSpaces, "\n"))
-		fmt.Print("All apps:\n\n", strings.Join(appNames, "\n"))
+		// fmt.Print("All apps:\n\n", strings.Join(appNames, "\n"))
 	}
 }
 
@@ -87,6 +105,16 @@ func (c *BirdsEye) GetMetadata() plugin.PluginMetadata {
 			},
 		},
 	}
+}
+
+func (c BirdsEye) UnmarshalOrg(url string, cliConnection plugin.CliConnection) Org {
+	var orgResult Org
+	cmd := []string{"curl", url}
+
+	result, _ := cliConnection.CliCommandWithoutTerminalOutput(cmd...)
+	json.Unmarshal([]byte(strings.Join(result, "")), &orgResult)
+
+	return orgResult
 }
 
 func main() {
