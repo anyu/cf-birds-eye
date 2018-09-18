@@ -36,13 +36,11 @@ func (c *BirdsEye) Run(cliConnection plugin.CliConnection, args []string) {
 			isLoggedIn bool
 			orgs       []plugin_models.GetOrgs_Model
 			spaces     []plugin_models.GetSpaces_Model
-			// apps       []plugin_models.GetAppsModel
+			apps       []plugin_models.GetAppsModel
 
 			orgNames []string
 			// spaceNames []string
-			// appNames []string
-
-			orgGUIDs []string
+			appNames []string
 		)
 
 		if _, err = cliConnection.HasAPIEndpoint(); err != nil {
@@ -61,29 +59,36 @@ func (c *BirdsEye) Run(cliConnection plugin.CliConnection, args []string) {
 			fmt.Printf("Error getting spaces: %v", spaces)
 		}
 
-		// if apps, err = cliConnection.GetApps(); err != nil {
-		// 	fmt.Printf("Error getting apps: %v", apps)
-		// }
+		if apps, err = cliConnection.GetApps(); err != nil {
+			fmt.Printf("Error getting apps: %v", apps)
+		}
 
 		for _, org := range orgs {
 			orgNames = append(orgNames, org.Name)
-			orgGUIDs = append(orgGUIDs, org.Guid)
 		}
+		fmt.Print("All orgs:\n\n*s", strings.Join(orgNames, "\n"))
 
-		fmt.Print("All orgs:\n\n", strings.Join(orgNames, "\n"))
+		for _, org := range orgs {
+			var orgResult Org
+			url := fmt.Sprintf("/v2/organizations/%s/spaces", org.Guid)
+			orgResult = c.UnmarshalOrg(url, cliConnection)
 
-		var orgResult Org
-		url := fmt.Sprintf("/v2/organizations/%s/spaces", orgGUIDs[0])
-		orgResult = c.UnmarshalOrg(url, cliConnection)
+			var orgSpaces, appsURLsInSpace []string
+			for _, space := range orgResult.Resources {
+				orgSpaces = append(orgSpaces, space.Entity.Name)
+				appsURLsInSpace = append(appsURLsInSpace, space.Entity.AppsURL)
+			}
 
-		var orgSpaces []string
-		for _, space := range orgResult.Resources {
-			orgSpaces = append(orgSpaces, space.Entity.Name)
+			fmt.Print("\n\n")
+			fmt.Printf("All spaces in %s:\n\n* %s", org.Name, strings.Join(orgSpaces, "\n"))
+
+			for _, app := range apps {
+				appNames = append(appNames, app.Name)
+			}
+
+			// fmt.Print("\n\n")
+			// fmt.Print("All apps:\n\n", strings.Join(appNames, "\n"))
 		}
-
-		fmt.Print("\n\n")
-		fmt.Print("All spaces:\n\n", strings.Join(orgSpaces, "\n"))
-		// fmt.Print("All apps:\n\n", strings.Join(appNames, "\n"))
 	}
 }
 
