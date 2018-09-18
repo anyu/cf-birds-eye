@@ -48,13 +48,11 @@ func (c *BirdsEye) Run(cliConnection plugin.CliConnection, args []string) {
 	if args[0] == pluginName {
 
 		var (
-			err error
-
+			err        error
 			isLoggedIn bool
 			orgs       []plugin_models.GetOrgs_Model
 			spaces     []plugin_models.GetSpaces_Model
-
-			orgNames []string
+			orgNames   []string
 		)
 
 		if _, err = cliConnection.HasAPIEndpoint(); err != nil {
@@ -97,11 +95,7 @@ func (c *BirdsEye) Run(cliConnection plugin.CliConnection, args []string) {
 				spaceResult = c.UnmarshalSpace(getSpaceAppsRequest, cliConnection)
 
 				var appsInSpace []string
-				for _, app := range spaceResult.Resources {
-					appsInSpace = append(appsInSpace, app.Entity.Name)
-				}
-				fmt.Print("\n\n")
-				fmt.Printf("All apps in %s:\n\n%s", space.Entity.Name, strings.Join(appsInSpace, "\n"))
+				displaySpaceApps(appsInSpace, spaceResult, space)
 			}
 		}
 	}
@@ -125,6 +119,14 @@ func (c *BirdsEye) GetMetadata() plugin.PluginMetadata {
 			},
 		},
 	}
+}
+
+func displaySpaceApps(spaceApps []string, space Space, sResult OrgResources) {
+	for _, app := range space.Resources {
+		spaceApps = append(spaceApps, app.Entity.Name)
+	}
+	fmt.Print("\n\n")
+	fmt.Printf("All apps in %s:\n\n%s", sResult.Entity.Name, strings.Join(spaceApps, "\n"))
 }
 
 func (c BirdsEye) UnmarshalOrg(url string, cliConnection plugin.CliConnection) Org {
