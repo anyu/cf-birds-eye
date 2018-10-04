@@ -3,15 +3,20 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
+	"code.cloudfoundry.org/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/trace"
 	"code.cloudfoundry.org/cli/plugin"
 	"code.cloudfoundry.org/cli/plugin/models"
 )
 
 const pluginName = "birds-eye"
 
-type BirdsEye struct{}
+type BirdsEye struct {
+	UI terminal.UI
+}
 
 type Org struct {
 	Resources []OrgResources `json:"resources"`
@@ -55,6 +60,14 @@ func (c *BirdsEye) Run(cliConnection plugin.CliConnection, args []string) {
 			orgNames   []string
 		)
 
+		ui := terminal.NewUI(
+			os.Stdin,
+			os.Stdout,
+			terminal.NewTeePrinter(os.Stdout),
+			trace.NewLogger(os.Stdout, false, "false", ""),
+		)
+		c.UI = ui
+
 		if _, err = cliConnection.HasAPIEndpoint(); err != nil {
 			fmt.Println("No API endpoint set")
 		}
@@ -74,7 +87,14 @@ func (c *BirdsEye) Run(cliConnection plugin.CliConnection, args []string) {
 		for _, org := range orgs {
 			orgNames = append(orgNames, org.Name)
 		}
-		fmt.Print("All orgs:\n\n", strings.Join(orgNames, "\n"))
+
+		table := ui.Table([]string{"", "", ""})
+		table.Add("Orgs", "Spaces", "Apps")
+
+		for _, o := range orgNames {
+			table.Add(string(o))
+		}
+		err = table.Print()
 
 		for _, org := range orgs {
 			var orgResult Org
